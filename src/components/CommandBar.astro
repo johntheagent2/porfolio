@@ -1,0 +1,393 @@
+---
+import { profile } from '../data/profile';
+import { url } from '../lib/url';
+
+interface Props {
+  sections: { command: string; title: string }[];
+}
+const { sections } = Astro.props;
+const config = {
+  sections,
+  cv: url(profile.contact.cv),
+  email: profile.contact.email,
+  github: profile.contact.github,
+  linkedin: profile.contact.linkedin,
+};
+---
+
+<header class="bar">
+  <div class="bar__inner container">
+    <form class="bar__prompt" id="cmd-form" autocomplete="off">
+      <label for="cmd-input" class="bar__ps">
+        <span class="bar__user" aria-hidden="true">phat@portfolio:~</span><span aria-hidden="true">$</span>
+        <span class="sr-only">Run a command</span>
+      </label>
+      <input
+        id="cmd-input"
+        type="text"
+        spellcheck="false"
+        autocapitalize="off"
+        enterkeyhint="go"
+        placeholder="type help, or press /"
+        aria-describedby="cmd-hint"
+        aria-controls="cmd-output"
+      />
+      <span id="cmd-hint" class="sr-only">Type help and press Enter to list commands.</span>
+    </form>
+
+    <nav class="bar__nav" aria-label="Sections">
+      {sections.map((s) => <a href={`#${s.command}`}>{s.command}</a>)}
+      <button class="bar__theme" type="button" id="theme-toggle" aria-label="Switch colour theme">theme</button>
+    </nav>
+  </div>
+
+  <div class="bar__out-wrap container">
+    <div id="cmd-output" class="bar__out" role="status" hidden></div>
+  </div>
+
+  <script type="application/json" id="cmd-config" set:html={JSON.stringify(config)} />
+</header>
+
+<script>
+  type Config = {
+    sections: { command: string; title: string }[];
+    cv: string;
+    email: string;
+    github: string;
+    linkedin: string;
+  };
+  type Result = string | Node | void;
+  type Command = { help: string; run: () => Result | Promise<Result> };
+
+  const cfg: Config = JSON.parse(document.getElementById('cmd-config')!.textContent!);
+  const form = document.getElementById('cmd-form') as HTMLFormElement;
+  const input = document.getElementById('cmd-input') as HTMLInputElement;
+  const out = document.getElementById('cmd-output') as HTMLDivElement;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const past: string[] = [];
+  let historyIndex = 0;
+
+  function go(id: string) {
+    const section = document.getElementById(id);
+    if (!section) return;
+    section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+    window.history.replaceState(null, '', `#${id}`);
+    document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
+    hide();
+  }
+
+  function toggleTheme() {
+    const root = document.documentElement;
+    const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem('theme', next);
+    } catch {}
+    return next;
+  }
+
+  const commands: Record<string, Command> = {};
+  for (const s of cfg.sections) {
+    commands[s.command] = { help: `Go to ${s.title.toLowerCase()}`, run: () => go(s.command) };
+  }
+  Object.assign(commands, {
+    cv: {
+      help: 'Open my CV (PDF)',
+      run: () => {
+        window.open(cfg.cv, '_blank', 'noopener');
+        return 'Opened the CV in a new tab.';
+      },
+    },
+    email: {
+      help: 'Copy my email address',
+      run: async () => {
+        try {
+          await navigator.clipboard.writeText(cfg.email);
+          return `Copied ${cfg.email}`;
+        } catch {
+          return `Couldn’t copy. My address is ${cfg.email}`;
+        }
+      },
+    },
+    github: { help: 'Open my GitHub', run: () => void window.open(cfg.github, '_blank', 'noopener') },
+    linkedin: { help: 'Open my LinkedIn', run: () => void window.open(cfg.linkedin, '_blank', 'noopener') },
+    theme: { help: 'Switch between light and dark', run: () => `Theme set to ${toggleTheme()}.` },
+    clear: { help: 'Close this panel', run: () => hide() },
+    help: { help: 'List all commands', run: () => helpList() },
+  } satisfies Record<string, Command>);
+
+  function helpList() {
+    const list = document.createElement('ul');
+    list.className = 'bar__help';
+    for (const [name, cmd] of Object.entries(commands)) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = name;
+      btn.addEventListener('click', () => execute(name));
+      const desc = document.createElement('span');
+      desc.textContent = cmd.help;
+      li.append(btn, desc);
+      list.append(li);
+    }
+    return list;
+  }
+
+  function show(result: Exclude<Result, void>, echo: string) {
+    const line = document.createElement('p');
+    line.className = 'bar__echo';
+    line.textContent = `$ ${echo}`;
+    const body = typeof result === 'string' ? Object.assign(document.createElement('p'), { textContent: result }) : result;
+    out.replaceChildren(line, body);
+    out.hidden = false;
+  }
+
+  function hide() {
+    out.hidden = true;
+    out.replaceChildren();
+  }
+
+  async function execute(raw: string) {
+    const name = raw.trim().toLowerCase();
+    if (!name) return;
+    past.push(name);
+    historyIndex = past.length;
+    input.value = '';
+    const cmd = commands[name];
+    if (!cmd) {
+      show(`Command not found: ${name}. Type help to see what’s available.`, name);
+      return;
+    }
+    const result = await cmd.run();
+    if (result) show(result, name);
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    execute(input.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      hide();
+      input.blur();
+    } else if (e.key === 'ArrowUp' && past.length) {
+      e.preventDefault();
+      historyIndex = Math.max(0, historyIndex - 1);
+      input.value = past[historyIndex];
+    } else if (e.key === 'ArrowDown' && past.length) {
+      e.preventDefault();
+      historyIndex = Math.min(past.length, historyIndex + 1);
+      input.value = past[historyIndex] ?? '';
+    } else if (e.key === 'Tab' && input.value.trim()) {
+      // Only take over Tab when there is something to complete, so keyboard navigation still works.
+      const matches = Object.keys(commands).filter((c) => c.startsWith(input.value.trim().toLowerCase()));
+      if (matches.length === 1) {
+        e.preventDefault();
+        input.value = matches[0];
+      } else if (matches.length > 1) {
+        e.preventDefault();
+        show(matches.join('   '), input.value);
+      }
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target as HTMLElement;
+    if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+    e.preventDefault();
+    input.focus();
+  });
+
+  document.getElementById('theme-toggle')!.addEventListener('click', toggleTheme);
+
+  // Close the output panel when the user clicks, taps or tabs anywhere outside the bar.
+  const bar = form.closest('.bar')!;
+  document.addEventListener('pointerdown', (e) => {
+    if (!out.hidden && !bar.contains(e.target as Node)) hide();
+  });
+  bar.addEventListener('focusout', (e) => {
+    const next = (e as FocusEvent).relatedTarget as Node | null;
+    if (next && !bar.contains(next)) hide();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !out.hidden) hide();
+  });
+</script>
+
+<style>
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.875rem;
+  }
+
+  .bar__inner {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-height: var(--bar-h);
+  }
+
+  .bar__prompt {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bar__ps {
+    color: var(--accent);
+    white-space: nowrap;
+    margin-right: 1ch;
+  }
+
+  .bar__user {
+    color: var(--ok);
+  }
+
+  #cmd-input {
+    flex: 1;
+    min-width: 6ch;
+    font: inherit;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    padding: 0.4rem 0;
+    caret-color: var(--accent);
+  }
+
+  #cmd-input::placeholder {
+    color: var(--muted);
+  }
+
+  #cmd-input:focus {
+    outline: none;
+  }
+
+  .bar__prompt:focus-within {
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .bar__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .bar__nav a,
+  .bar__theme {
+    font: inherit;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .bar__nav a:hover,
+  .bar__theme:hover {
+    color: var(--text);
+    background: var(--panel);
+  }
+
+  .bar__theme {
+    margin-left: 0.5rem;
+    border: 1px solid var(--line);
+  }
+
+  .bar__out-wrap {
+    position: relative;
+  }
+
+  .bar__out {
+    position: absolute;
+    top: 0.5rem;
+    left: clamp(1rem, 4vw, 2.5rem);
+    width: min(36rem, calc(100% - 2 * clamp(1rem, 4vw, 2.5rem)));
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.45);
+  }
+
+  .bar__out :global(p) {
+    margin: 0;
+  }
+
+  .bar__out :global(.bar__echo) {
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .bar__out :global(.bar__help) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .bar__out :global(.bar__help li) {
+    display: grid;
+    grid-template-columns: 12ch 1fr;
+    align-items: baseline;
+  }
+
+  .bar__out :global(.bar__help button) {
+    font: inherit;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    padding: 0.15rem 0;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .bar__out :global(.bar__help button:hover) {
+    text-decoration: underline;
+  }
+
+  .bar__out :global(.bar__help span) {
+    color: var(--muted);
+    font-family: var(--sans);
+  }
+
+  @media (max-width: 760px) {
+    .bar__inner {
+      flex-wrap: wrap;
+      gap: 0;
+      padding-block: 0.35rem;
+    }
+
+    .bar__user {
+      display: none;
+    }
+
+    .bar__prompt {
+      flex-basis: 100%;
+    }
+
+    .bar__nav {
+      width: 100%;
+      margin-inline: -0.6rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .bar__theme {
+      margin-left: auto;
+    }
+  }
+</style>

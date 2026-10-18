@@ -1,0 +1,137 @@
+---
+import SectionHeading from '../components/SectionHeading.astro';
+import { profile } from '../data/profile';
+import { url } from '../lib/url';
+
+const { email, phones, github, linkedin, cv } = profile.contact;
+const display = (href: string) => href.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+// Phone numbers ship encoded and are only decoded on click, to keep simple scrapers away.
+const encoded = phones.map((p) => btoa([...p].reverse().join('')));
+---
+
+<section class="section" id="contact" aria-labelledby="contact-title">
+  <div class="container">
+    <SectionHeading id="contact-title" command="produce message --to phat" />
+
+    <p class="contact__lead">Email is the quickest way to reach me. I’m happy to talk about backend roles, consulting work or anything event-driven.</p>
+
+    <div class="contact__email">
+      <a href={`mailto:${email}`}>{email}</a>
+      <button class="btn btn--quiet" type="button" data-copy={email}>Copy</button>
+    </div>
+
+    <dl class="contact__list">
+      <div>
+        <dt>github</dt>
+        <dd><a href={github} rel="me noopener" target="_blank">{display(github)}</a></dd>
+      </div>
+      <div>
+        <dt>linkedin</dt>
+        <dd><a href={linkedin} rel="me noopener" target="_blank">{display(linkedin)}</a></dd>
+      </div>
+      <div>
+        <dt>phone</dt>
+        <dd class="contact__phones" data-phones={JSON.stringify(encoded)}>
+          <button class="btn btn--quiet" type="button" data-reveal>Show phone numbers</button>
+        </dd>
+      </div>
+      <div>
+        <dt>cv</dt>
+        <dd><a href={url(cv)} download>Download PDF</a></dd>
+      </div>
+      <div>
+        <dt>based in</dt>
+        <dd>{profile.location}</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const label = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+        btn.textContent = 'Copied';
+      } catch {
+        btn.textContent = 'Copy failed. Select the address instead';
+      }
+      setTimeout(() => (btn.textContent = label), 2000);
+    });
+  });
+
+  const phones = document.querySelector<HTMLElement>('.contact__phones');
+  phones?.querySelector('[data-reveal]')?.addEventListener('click', () => {
+    const numbers: string[] = JSON.parse(phones.dataset.phones ?? '[]').map((s: string) =>
+      [...atob(s)].reverse().join(''),
+    );
+    phones.replaceChildren(
+      ...numbers.map((n) => {
+        const a = document.createElement('a');
+        a.href = `tel:${n.replace(/\D/g, '')}`;
+        a.textContent = n;
+        return a;
+      }),
+    );
+    phones.querySelector('a')?.focus();
+  });
+</script>
+
+<style>
+  .contact__lead {
+    max-width: 52ch;
+    font-size: 1.125rem;
+    margin: 0;
+  }
+
+  .contact__email {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.5rem;
+    margin: 2rem 0 3rem;
+  }
+
+  .contact__email a {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(1.25rem, 4.2vw, 2.25rem);
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    text-decoration-thickness: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  .contact__list {
+    display: grid;
+    gap: 0.9rem;
+    margin: 0;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+    max-width: 46rem;
+  }
+
+  .contact__list > div {
+    display: grid;
+    grid-template-columns: 10ch minmax(0, 1fr);
+    gap: 2ch;
+    align-items: baseline;
+  }
+
+  .contact__list dt {
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .contact__list dd {
+    margin: 0;
+  }
+
+  .contact__phones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 2ch;
+  }
+</style>

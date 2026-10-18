@@ -1,0 +1,261 @@
+---
+import { profile } from '../data/profile';
+import { formatMonth, type StreamRecord } from '../lib/experience';
+import { url } from '../lib/url';
+
+interface Props {
+  stream: StreamRecord[];
+}
+const { stream } = Astro.props;
+const command = 'consume experience --from-beginning';
+---
+
+<section class="hero container" aria-labelledby="hero-name">
+  <h1 class="hero__name" id="hero-name">{profile.name}</h1>
+  <p class="hero__lede">{profile.title}</p>
+  <p class="hero__where">{profile.location}</p>
+
+  <div class="hero__actions">
+    <a class="btn btn--solid" href={`mailto:${profile.contact.email}`}>Email me</a>
+    <a class="btn" href={url(profile.contact.cv)} download>Download CV</a>
+  </div>
+
+  <div class="pane" style={`--len: ${command.length}; --count: ${stream.length}`}>
+    <div class="pane__head">
+      <span>topic: experience</span>
+      <span>{stream.length} records</span>
+    </div>
+    <div class="pane__body">
+      <p class="pane__cmd">
+        <span class="pane__ps" aria-hidden="true">$</span><span class="pane__typed">{command}</span>
+      </p>
+      <ol class="recs" aria-label="Experience, oldest first">
+        {
+          stream.map(({ entry, offset, key, live }) => (
+            <li style={`--i: ${offset}`}>
+              <a class="rec" href={`#record-${offset}`}>
+                <span class="rec__off">{offset}</span>
+                <span class="rec__date">{formatMonth(entry.data.start)}</span>
+                <span class:list={['rec__key', { live }]}>
+                  {key}
+                  {live && <span class="sr-only"> (current)</span>}
+                </span>
+                <span class="rec__sum">{entry.data.summary}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+      <p class="pane__idle">
+        <span class="cursor" aria-hidden="true"></span>waiting for the next record
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-block: clamp(3.5rem, 9vw, 6.5rem) clamp(4rem, 9vw, 6rem);
+  }
+
+  .hero__name {
+    font-family: var(--mono);
+    font-weight: 800;
+    font-size: clamp(2.5rem, 9.5vw, 6.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.055em;
+    margin: 0;
+  }
+
+  .hero__lede {
+    font-size: clamp(1.1875rem, 2.2vw, 1.5rem);
+    line-height: 1.45;
+    max-width: 34ch;
+    margin: clamp(1.25rem, 3vw, 2rem) 0 0;
+  }
+
+  .hero__where {
+    color: var(--muted);
+    margin: 0.5rem 0 0;
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  /* ---------- Terminal pane ---------- */
+  .pane {
+    margin-top: clamp(3rem, 7vw, 4.5rem);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .pane__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .pane__body {
+    padding: 1.1rem 1.25rem 1.25rem;
+  }
+
+  .pane__cmd {
+    display: flex;
+    margin: 0 0 0.75rem;
+    white-space: nowrap;
+  }
+
+  .pane__ps {
+    color: var(--accent);
+    margin-right: 1ch;
+  }
+
+  .pane__typed {
+    display: inline-block;
+    overflow: hidden;
+  }
+
+  .recs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .rec {
+    display: grid;
+    grid-template-columns: 2ch 9ch minmax(16ch, 26ch) minmax(0, 1fr);
+    gap: 0 2ch;
+    padding: 0.2rem 0.5rem;
+    margin-inline: -0.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+  }
+
+  .rec:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: inherit;
+  }
+
+  .rec__off {
+    color: var(--accent);
+    text-align: right;
+  }
+
+  .rec__date {
+    color: var(--muted);
+  }
+
+  .rec__sum {
+    color: var(--muted);
+  }
+
+  .rec:hover .rec__sum {
+    color: var(--text);
+  }
+
+  .pane__idle {
+    display: flex;
+    align-items: center;
+    margin: 0.75rem 0 0;
+    color: var(--muted);
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.1em;
+    margin-right: 1ch;
+    background: var(--ok);
+  }
+
+  @media (max-width: 640px) {
+    .pane__head,
+    .pane__body {
+      padding-inline: 1rem;
+    }
+
+    .pane__cmd {
+      font-size: 0.8125rem;
+    }
+
+    .rec {
+      grid-template-columns: 2ch minmax(0, 1fr);
+      grid-template-areas:
+        'off key'
+        'off sum';
+      padding-block: 0.4rem;
+    }
+
+    .rec__off {
+      grid-area: off;
+    }
+
+    .rec__key {
+      grid-area: key;
+    }
+
+    .rec__sum {
+      grid-area: sum;
+    }
+
+    .rec__date {
+      display: none;
+    }
+  }
+
+  /* ---------- The one orchestrated moment: the command types, records stream in ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    .pane__typed {
+      width: 0;
+      animation: type calc(var(--len) * 28ms) steps(var(--len), end) 300ms forwards;
+    }
+
+    .recs li,
+    .pane__idle {
+      opacity: 0;
+      animation: arrive 1ms linear forwards;
+    }
+
+    .recs li {
+      animation-delay: calc(300ms + var(--len) * 28ms + 250ms + var(--i) * 160ms);
+    }
+
+    .pane__idle {
+      animation-delay: calc(300ms + var(--len) * 28ms + 250ms + var(--count) * 160ms + 200ms);
+    }
+
+    .cursor {
+      animation: blink 1s steps(1) calc(300ms + var(--len) * 28ms + var(--count) * 160ms + 450ms) 10;
+    }
+  }
+
+  @keyframes type {
+    to {
+      width: calc(var(--len) * 1ch);
+    }
+  }
+
+  @keyframes arrive {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+</style>

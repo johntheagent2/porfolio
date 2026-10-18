@@ -1,0 +1,163 @@
+---
+import { render } from 'astro:content';
+import SectionHeading from '../components/SectionHeading.astro';
+import { formatMonth, type StreamRecord } from '../lib/experience';
+
+interface Props {
+  stream: StreamRecord[];
+}
+const { stream } = Astro.props;
+
+// Newest first for reading; offsets still show the real order.
+const records = await Promise.all(
+  [...stream].reverse().map(async (record) => ({ ...record, Content: (await render(record.entry)).Content })),
+);
+---
+
+<section class="section" id="experience" aria-labelledby="experience-title">
+  <div class="container">
+    <SectionHeading id="experience-title" command="inspect experience" />
+
+    <ol class="stream">
+      {
+        records.map(({ entry, offset, key, live, Content }) => (
+          <li class="record" id={`record-${offset}`}>
+            <div class="record__rail" aria-hidden="true">
+              <span class="record__off">{offset}</span>
+            </div>
+            <article class="record__body">
+              <header>
+                <p class="record__meta">
+                  <span>{key}</span>
+                  <span class:list={['record__when', { live }]}>
+                    {formatMonth(entry.data.start)} – {entry.data.end ? formatMonth(entry.data.end) : 'now'}
+                  </span>
+                </p>
+                <h3 class="record__title">{entry.data.project}</h3>
+                <p class="record__org">
+                  {entry.data.role ? `${entry.data.company}, ${entry.data.role}` : entry.data.company}
+                </p>
+              </header>
+              <p class="record__summary">{entry.data.summary}</p>
+              <ul class="chips record__stack" aria-label="Technology">
+                {entry.data.stack.map((s) => (
+                  <li class="chip">{s}</li>
+                ))}
+              </ul>
+              <div class="prose record__details">
+                <Content />
+              </div>
+            </article>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .stream {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .record {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0 clamp(1rem, 3vw, 2rem);
+    scroll-margin-top: calc(var(--bar-h) + 1.5rem);
+  }
+
+  .record__rail {
+    position: relative;
+    font-family: var(--mono);
+    text-align: right;
+  }
+
+  .record__off {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    letter-spacing: -0.04em;
+  }
+
+  .record__rail::after {
+    content: '';
+    position: absolute;
+    top: 3rem;
+    bottom: 1rem;
+    right: 0.55rem;
+    width: 1px;
+    background: var(--line);
+  }
+
+  .record:last-child .record__rail::after {
+    display: none;
+  }
+
+  .record__body {
+    padding-bottom: clamp(3rem, 7vw, 4.5rem);
+    max-width: 46rem;
+  }
+
+  .record:last-child .record__body {
+    padding-bottom: 0;
+  }
+
+  .record__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 2ch;
+    margin: 0.35rem 0 0;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+
+  .record__when.live {
+    color: var(--text);
+  }
+
+  .record__title {
+    font-size: var(--step-1);
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0.75rem 0 0;
+  }
+
+  .record__org {
+    margin: 0.15rem 0 0;
+    color: var(--muted);
+  }
+
+  .record__summary {
+    margin: 1rem 0 0;
+  }
+
+  .record__stack {
+    margin-top: 1rem;
+  }
+
+  .record__details {
+    margin-top: 1.25rem;
+  }
+
+  @media (max-width: 600px) {
+    .record {
+      grid-template-columns: 2rem minmax(0, 1fr);
+    }
+
+    .record__off {
+      font-size: 1.5rem;
+    }
+
+    .record__rail::after {
+      top: 2.5rem;
+      right: 0.4rem;
+    }
+  }
+</style>

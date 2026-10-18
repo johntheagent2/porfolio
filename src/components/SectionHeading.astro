@@ -1,0 +1,32 @@
+---
+// Section headings are written as the command that "prints" the section.
+interface Props {
+  id: string;
+  command: string;
+}
+const { id, command } = Astro.props;
+---
+
+<h2 class="sh" id={id} tabindex="-1">
+  <span class="sh__ps" aria-hidden="true">$</span>{command}
+</h2>
+
+<style>
+  .sh {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: var(--step-2);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 clamp(2rem, 5vw, 3rem);
+  }
+
+  .sh:focus {
+    outline: none;
+  }
+
+  .sh__ps {
+    color: var(--accent);
+    margin-right: 1ch;
+  }
+</style>

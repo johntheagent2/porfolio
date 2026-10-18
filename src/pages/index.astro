@@ -1,0 +1,60 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import CommandBar from '../components/CommandBar.astro';
+import Hero from '../components/Hero.astro';
+import MarkdownSection from '../sections/MarkdownSection.astro';
+import { componentSections } from '../data/sections';
+import { profile } from '../data/profile';
+import { getStream } from '../lib/experience';
+
+const stream = await getStream();
+const markdownSections = (await getCollection('sections')).map((entry) => ({ ...entry.data, entry }));
+
+const sections = [...componentSections, ...markdownSections].sort((a, b) => a.order - b.order);
+const updated = new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+---
+
+<Base>
+  <CommandBar sections={sections.map(({ command, title }) => ({ command, title }))} />
+  <main id="main">
+    <Hero stream={stream} />
+    {
+      sections.map((s) => {
+        if ('entry' in s) return <MarkdownSection entry={s.entry} />;
+        const Section = s.component;
+        return <Section stream={stream} />;
+      })
+    }
+  </main>
+  <footer class="footer container">
+    <p>© {new Date().getFullYear()} {profile.name}. Updated {updated}.</p>
+    <p>Built with Astro. Press <kbd>/</kbd> to type a command.</p>
+  </footer>
+</Base>
+
+<style>
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 2rem;
+    padding-block: 2rem 2.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  .footer p {
+    margin: 0;
+  }
+
+  kbd {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--text);
+  }
+</style>

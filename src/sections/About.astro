@@ -1,0 +1,126 @@
+---
+import SectionHeading from '../components/SectionHeading.astro';
+import { profile } from '../data/profile';
+---
+
+<section class="section" id="about" aria-labelledby="about-title">
+  <div class="container">
+    <SectionHeading id="about-title" command="cat about.md" />
+
+    <div class="about">
+      <div class="about__text">
+        <div class="prose about__intro">
+          {profile.about.map((p) => <p>{p}</p>)}
+        </div>
+
+        <dl class="edu">
+          {
+            profile.education.map((e) => (
+              <div class="edu__row">
+                <dt>{e.name}</dt>
+                <dd>
+                  {e.detail}
+                  {e.when && <span class="edu__when">{e.when}</span>}
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+
+      <figure class="stack">
+        <figcaption class="stack__file">stack.yml</figcaption>
+        <dl class="stack__body">
+          {
+            Object.entries(profile.stack).map(([group, items]) => (
+              <div class="stack__row">
+                <dt>{group}:</dt>
+                <dd>
+                  <ul class="chips">
+                    {items.map((item) => (
+                      <li class="chip">{item}</li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<style>
+  .about {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: clamp(2.5rem, 6vw, 5rem);
+    align-items: start;
+  }
+
+  .about__intro {
+    font-size: 1.125rem;
+  }
+
+  .edu {
+    margin: 2.5rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .edu dt {
+    font-weight: 600;
+  }
+
+  .edu dd {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .edu__when {
+    margin-left: 1.5ch;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+  }
+
+  .stack {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: var(--mono);
+  }
+
+  .stack__file {
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .stack__body {
+    margin: 0;
+    padding: 1.25rem;
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .stack__row dt {
+    color: var(--ok);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stack__row dd {
+    margin: 0;
+  }
+
+  @media (max-width: 860px) {
+    .about {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

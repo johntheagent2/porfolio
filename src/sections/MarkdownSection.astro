@@ -1,0 +1,21 @@
+---
+// Renders any Markdown file from src/content/sections as a page section.
+import { render, type CollectionEntry } from 'astro:content';
+import SectionHeading from '../components/SectionHeading.astro';
+
+interface Props {
+  entry: CollectionEntry<'sections'>;
+}
+const { entry } = Astro.props;
+const { command } = entry.data;
+const { Content } = await render(entry);
+---
+
+<section class="section" id={command} aria-labelledby={`${command}-title`}>
+  <div class="container">
+    <SectionHeading id={`${command}-title`} command={`cat ${command}.md`} />
+    <div class="prose">
+      <Content />
+    </div>
+  </div>
+</section>
